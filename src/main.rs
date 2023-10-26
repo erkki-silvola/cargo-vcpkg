@@ -9,6 +9,7 @@ use std::{
     process::{Command, Output, Stdio},
     str,
     time::SystemTime,
+    path::PathBuf,
 };
 use structopt::StructOpt;
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
@@ -113,7 +114,33 @@ fn main() {
 
     match args.sub {
         Subcommands::Build { .. } => {
-            build(args).unwrap_or_else(|e| {
+            let triplet = target_triple();
+            let verbose = args.verbose;
+
+            let mut e_args = std::env::args().skip_while(|val| !val.starts_with("--manifest-path"));
+            let mut cmd = cargo_metadata::MetadataCommand::new();
+
+            match e_args.next() {
+                Some(p) if p == "--manifest-path" => {
+                    cmd.manifest_path(e_args.next().unwrap());
+                }
+                Some(p) => {
+                    cmd.manifest_path(p.trim_start_matches("--manifest-path="));
+                }
+                None => {}
+            }
+
+            let metadata = cmd.exec().unwrap_or_else(|e| {
+                eprintln!("cargo-vcpkg: {}", e);
+                std::process::exit(1);
+            });
+
+            let vcpkg_root = match find_vcpkg_root(&Config::default()) {
+                Ok(root) => Some(root),
+                Err(_) => None,
+            };
+
+            build(triplet, verbose, &metadata, vcpkg_root).unwrap_or_else(|e| {
                 eprintln!("cargo-vcpkg: {}", e);
                 std::process::exit(1);
             });
@@ -121,26 +148,13 @@ fn main() {
     }
 }
 
-fn build(opt: Opt) -> Result<(), anyhow::Error> {
+pub fn build(
+    target_triple: String,
+    verbose: bool,
+    metadata: &cargo_metadata::Metadata,
+    vcpkg_root_installed: Option<PathBuf>,
+) -> Result<(), anyhow::Error> {
     let start_time = SystemTime::now();
-
-    let target_triple = target_triple();
-
-    let verbose = opt.verbose;
-
-    let mut args = std::env::args().skip_while(|val| !val.starts_with("--manifest-path"));
-    let mut cmd = cargo_metadata::MetadataCommand::new();
-
-    match args.next() {
-        Some(p) if p == "--manifest-path" => {
-            cmd.manifest_path(args.next().unwrap());
-        }
-        Some(p) => {
-            cmd.manifest_path(p.trim_start_matches("--manifest-path="));
-        }
-        None => {}
-    }
-    let metadata = cmd.exec()?;
 
     let vmd = process_metadata(&metadata, &target_triple)?;
 
@@ -148,12 +162,15 @@ fn build(opt: Opt) -> Result<(), anyhow::Error> {
     // let mut allow_updates = true;
 
     // find the vcpkg root
-    let vcpkg_root = find_vcpkg_root(&Config::default()).unwrap_or_else(|_| {
+    let vcpkg_root = if let Some(vcpkg_root_installed) = vcpkg_root_installed {
+        vcpkg_root_installed
+    } else {
         let target_directory = metadata.target_directory.clone();
-        let mut vcpkg_root = target_directory;
-        vcpkg_root.push("vcpkg");
-        vcpkg_root.into()
-    });
+        let mut vcpkg_root_u8 = target_directory;
+        vcpkg_root_u8.push("vcpkg");
+        PathBuf::from(vcpkg_root_u8.to_string())
+    };
+
     if verbose {
         println!("vcpkg root is {}", vcpkg_root.display());
     }
