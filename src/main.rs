@@ -349,7 +349,7 @@ fn process_metadata(
     let mut git_url = None;
     let mut vcpkg_ports = Vec::<String>::new();
     let mut rev_tag_branch: Option<RevSelector> = None;
-    let mut vcpkg_triplet = None;
+    let mut vcpkg_triplet = Some(target_triple.to_string());
     let mut overlay_triplets_path = None;
 
     // dbg!(&metadata.workspace_root);
@@ -393,7 +393,7 @@ fn process_metadata(
                         vcpkg_ports.extend_from_slice(deps.unwrap().as_slice());
                     }
                     if is_root_crate && target.triplet.is_some() {
-                        vcpkg_triplet = target.triplet.clone();
+                        //vcpkg_triplet = target.triplet.clone();
                     }
                     if is_root_crate {
                         let dev_deps = target
