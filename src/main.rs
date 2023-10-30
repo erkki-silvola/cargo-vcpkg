@@ -97,7 +97,7 @@ enum Subcommands {
 }
 
 #[derive(Debug)]
-enum RevSelector {
+pub enum RevSelector {
     Rev(String),
     Tag(String),
     Branch(String),
@@ -140,7 +140,7 @@ fn main() {
                 Err(_) => None,
             };
 
-            build(triplet, verbose, &metadata, vcpkg_root).unwrap_or_else(|e| {
+            build(&triplet, verbose, &metadata, vcpkg_root).unwrap_or_else(|e| {
                 eprintln!("cargo-vcpkg: {}", e);
                 std::process::exit(1);
             });
@@ -149,14 +149,14 @@ fn main() {
 }
 
 pub fn build(
-    target_triple: String,
+    target_triple: &str,
     verbose: bool,
     metadata: &cargo_metadata::Metadata,
     vcpkg_root_installed: Option<PathBuf>,
 ) -> Result<(), anyhow::Error> {
     let start_time = SystemTime::now();
 
-    let vmd = process_metadata(&metadata, &target_triple)?;
+    let vmd = process_metadata(&metadata, target_triple)?;
 
     // should we modify the existing?
     // let mut allow_updates = true;
@@ -327,7 +327,7 @@ pub fn build(
 }
 
 #[derive(Debug)]
-struct VcpkgMetadata {
+pub struct VcpkgMetadata {
     pub git_url: Option<String>,
     pub vcpkg_ports: Vec<String>,
     pub rev_tag_branch: Option<RevSelector>,
