@@ -250,7 +250,7 @@ pub fn build(
         run_command(cmd, verbose).context("failed to execute process")?;
     }
     // try and run 'vcpkg update' and if it fails or gives the version warning, rebuild it
-    let require_bootstrap = match vcpkg_command(&vcpkg_root, &vmd.vcpkg_triplet)
+    /*let require_bootstrap = match vcpkg_command(&vcpkg_root, &vmd.vcpkg_triplet)
         .arg("update")
         .output()
     {
@@ -266,11 +266,11 @@ pub fn build(
                     .contains("Warning: Different source is available for vcpkg")
         }
         Err(_) => true,
-    };
+    };*/
 
-    if require_bootstrap {
+    //if require_bootstrap {
         run_bootstrap(&vcpkg_root, verbose)?;
-    }
+    //}
 
     // TODO: upgrade anything that is installed
     print_tag("Installing", &vmd.vcpkg_ports.join(" "));
